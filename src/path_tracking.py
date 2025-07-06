@@ -55,23 +55,24 @@ class PathTracker:
             else:
                 px, py = filtered[-1]
                 dx, dy = tx - px, ty - py
-                dist = math.hypot(dx, dy)
-                if dist < min_dist:         # ここでローカル min_dist を使う
-                    # 距離が近すぎ → スキップ
-                    continue
-                # 今回のセグメント方向
+
+                # 距離と角度、両方で「本当に細かい動き」だけスキップ
+                dist  = math.hypot(dx, dy)
                 theta = math.atan2(dy, dx)
                 if last_dir is not None:
-                    # 角度差を [-π, π] に正規化
                     diff = (theta - last_dir + math.pi) % (2*math.pi) - math.pi
-                    if abs(diff) < min_angle:  # ここで min_angle を使う
-                        # 角度変化が小さい → スキップ
-                        continue
+                else:
+                    diff = 0.0
+
+                # 両方の基準を超えない（小距離かつ小角度）場合のみスキップ
+                if dist < min_dist and abs(diff) < min_angle:
+                    continue
+                
                 # フィルタ通過
                 filtered.append((tx, ty))
                 last_dir = theta
 
-        rospy.loginfo(f"Downsampled: {len(raw_targets)} → {len(filtered)} points (dist<{min_dist}m or Δangle<{min_angle_deg}° をスキップ)")
+        rospy.loginfo(f"Downsampled: {len(raw_targets)} → {len(filtered)} points (dist<{min_dist}m and Δangle<{min_angle_deg}° をスキップ)")
         self.targets = filtered
 #7.6
 
