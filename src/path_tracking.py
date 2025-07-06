@@ -34,6 +34,7 @@ class PathTracker:
             rospy.signal_shutdown("No targets")
 
         # State
+        rospy.loginfo(f"all steps are {len(self.targets)}")
         self.current_pose = None
         self.index = 0
 
@@ -72,12 +73,12 @@ class PathTracker:
 
             # --- スキップ条件を先にチェック ---
             # 距離 < 0.1m かつ |角度差| < 0.3rad のときは無条件で次へ
-            if distance < 0.1 and abs(angle_diff) < 0.3:
-                rospy.loginfo(f"Skipped target {self.index+1}/{len(self.targets)} "
-                              f"({tx:.3f}, {ty:.3f}) by shortcut")
-                self.index += 1
+            #if distance < 0.1 and abs(angle_diff) < 0.3:
+            #    rospy.loginfo(f"Skipped target {self.index+1}/{len(self.targets)} "
+            #                  f"({tx:.3f}, {ty:.3f}) by shortcut")
+            #    self.index += 1
                 # ここで publish せずに次ループへ
-                continue
+            #    continue
             
             twist = Twist()
             # Rotate first
