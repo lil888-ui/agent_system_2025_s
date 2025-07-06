@@ -2,22 +2,27 @@
 
 import rospy
 import csv
-import math
+nimport math
 from geometry_msgs.msg import PoseStamped, Twist
 from tf.transformations import euler_from_quaternion
 
 class PathTracker:
     def __init__(self):
         # Parameters
-        csv_path = rospy.get_param('~csv_path', "/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv")
+        csv_path            = rospy.get_param('~csv_path', "/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv")
         self.distance_threshold = rospy.get_param('~distance_threshold', 0.05)
         self.angular_threshold  = rospy.get_param('~angular_threshold', 0.1)
         self.linear_speed       = rospy.get_param('~linear_speed', 0.2)
         self.angular_speed      = rospy.get_param('~angular_speed', 0.5)
-        rate_hz = rospy.get_param('~rate', 10)
+        rate_hz             = rospy.get_param('~rate', 10)
 
-        # Load targets from CSV: columns [time, x, y, z]
-        self.targets = []
+        # Skip (downsampling) thresholds
+        self.skip_dist      = rospy.get_param('~skip_distance', 0.05)
+        self.skip_angle_deg = rospy.get_param('~skip_angle_deg', 10.0)
+        self.skip_angle     = math.radians(self.skip_angle_deg)
+
+        # Load all points from CSV
+        raw_targets = []
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
@@ -26,61 +31,53 @@ class PathTracker:
                 try:
                     x = float(row[1])
                     y = float(row[2])
-                    self.targets.append((x, y))
+                    raw_targets.append((x, y))
                 except ValueError:
                     continue
-        if not self.targets:
+        if not raw_targets:
             rospy.logerr(f"No valid targets loaded from {csv_path}")
             rospy.signal_shutdown("No targets")
+            return
 
-        # --- ダウンサンプリングの閾値を先に取得 ---
-        self.min_dist      = rospy.get_param('~min_dist',      0.1)
-        self.min_angle_deg = rospy.get_param('~min_angle_deg', 20.0)
-        self.min_angle     = math.radians(self.min_angle_deg)
-        # -------------------------------
-        
-        # --- ダウンサンプリング開始 ---
-        raw_targets = self.targets    # CSVから読み込んだままの全点リスト
-        filtered    = []              # フィルタ後の点をためるリスト
-        last_dir    = None            # 前回採用した点への進行方向（ラジアン）
-        
-        for tx, ty in raw_targets:
-            if not filtered:
-                # 最初の点は必ず残す
-                filtered.append((tx, ty))
-                last_dir = None
+        # --- Downsampling: skip B if dist(A,B)<skip_dist and angle_change<skip_angle ---
+        filtered = []
+        base_x, base_y = None, None
+        base_dir = None  # last segment direction
+
+        for pt in raw_targets:
+            if base_x is None:
+                # First point always keep
+                filtered.append(pt)
+                base_x, base_y = pt
+                continue
+            # Compute vector from base to current
+            dx = pt[0] - base_x
+            dy = pt[1] - base_y
+            dist = math.hypot(dx, dy)
+            # Compute heading of this segment
+            theta = math.atan2(dy, dx)
+            if base_dir is None:
+                angle_diff = 0.0
             else:
-                # 直前に残した点を取得
-                px, py = filtered[-1]
-                # 今回の点までのベクトル差分
-                dx, dy = tx - px, ty - py
-                # 距離と方位を計算
-                dist  = math.hypot(dx, dy)
-                theta = math.atan2(dy, dx)
-                # 前回方向との差を [-π, π] に正規化
-                if last_dir is not None:
-                    diff = (theta - last_dir + math.pi) % (2*math.pi) - math.pi
-                else:
-                    diff = 0.0
-        
-                # 【スキップ条件】
-                # 距離も角度変化も小さい → “本当に細かい動き” とみなし、残さず飛ばす
-                if dist < self.min_dist and abs(diff) < self.min_angle:
-                    continue
-        
-                # そうでなければ採用し、方向を更新
-                filtered.append((tx, ty))
-                last_dir = theta
-        
-        # フィルタ後のリストで置き換え
+                # Normalize to [-pi, pi]
+                angle_diff = (theta - base_dir + math.pi) % (2*math.pi) - math.pi
+
+            # Skip if both distance and angle change small
+            if dist <= self.skip_dist and abs(angle_diff) <= self.skip_angle:
+                # Do not update base; skip this point
+                continue
+
+            # Otherwise, keep this point and update base and base_dir
+            filtered.append(pt)
+            base_dir = theta
+            base_x, base_y = pt
+
         self.targets = filtered
-        # --- ダウンサンプリング終了 ---
+        rospy.loginfo(f"Downsampled: {len(raw_targets)} → {len(self.targets)} points")
 
-
-        
         # State
         self.current_pose = None
-        self.index = 0
+        self.index        = 0
 
         # ROS pubs/subs
         self.pose_sub = rospy.Subscriber('/robot_pose', PoseStamped, self.pose_callback)
@@ -102,43 +99,38 @@ class PathTracker:
             px = self.current_pose.pose.position.x
             py = self.current_pose.pose.position.y
             ori = self.current_pose.pose.orientation
-            quaternion = [ori.x, ori.y, ori.z, ori.w]
-            (_, _, yaw) = euler_from_quaternion(quaternion)
+            quat = [ori.x, ori.y, ori.z, ori.w]
+            (_, _, yaw) = euler_from_quaternion(quat)
 
             # Target position
             tx, ty = self.targets[self.index]
 
             # Compute error
-            err_x = tx - px
-            err_y = ty - py
-            distance = math.hypot(err_x, err_y)
-            target_angle = math.atan2(err_y, err_x)
+            dx = tx - px
+            dy = ty - py
+            distance = math.hypot(dx, dy)
+            target_angle = math.atan2(dy, dx)
             angle_diff = self.normalize_angle(target_angle - yaw)
 
+            # Mixed control: rotate and move concurrently
             twist = Twist()
-            # Rotate first
-            if abs(angle_diff) > self.angular_threshold:
-                twist.linear.x  = 0.0
-                twist.angular.z = self.angular_speed * (1 if angle_diff > 0 else -1)
+            # Linear speed
+            if distance > self.distance_threshold:
+                twist.linear.x = self.linear_speed
             else:
-                # Move forward
-                if distance > self.distance_threshold:
-                    twist.linear.x  = self.linear_speed
-                    twist.angular.z = 0.0
-                else:
-                    # Reached target
-                    rospy.loginfo(f"Reached target {self.index+1}/{len(self.targets)}: ({tx:.3f}, {ty:.3f})")
-                    self.index += 1
-                    twist.linear.x  = 0.0
-                    twist.angular.z = 0.0
+                rospy.loginfo(f"Reached target {self.index+1}/{len(self.targets)}: ({tx:.3f}, {ty:.3f})")
+                self.index += 1
+                twist.linear.x = 0.0
+
+            # Angular speed (proportional)
+            twist.angular.z = self.angular_speed * angle_diff
 
             self.cmd_pub.publish(twist)
             self.rate.sleep()
 
-        # Stop at end
+        # Stop robot at end
         rospy.loginfo("Path tracking complete. Stopping robot.")
-        stop_twist = Twist()
-        self.cmd_pub.publish(stop_twist)
+        self.cmd_pub.publish(Twist())
         rospy.signal_shutdown("Done")
 
     @staticmethod
