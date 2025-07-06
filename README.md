@@ -10,3 +10,6 @@
       _rate:=10
 
 a
+    source ~/ros/agent_system_ws/devel/setup.bash
+
+a
