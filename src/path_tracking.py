@@ -2,7 +2,7 @@
 
 import rospy
 import csv
-nimport math
+import math
 from geometry_msgs.msg import PoseStamped, Twist
 from tf.transformations import euler_from_quaternion
 
