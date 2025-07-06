@@ -113,7 +113,10 @@ class PathTracker:
             distance = math.hypot(err_x, err_y)
             target_angle = math.atan2(err_y, err_x)
             angle_diff = self.normalize_angle(target_angle - yaw)
-
+            rospy.logdebug(
+                f"[{self.index}/{len(self.targets)}] "
+                f"dist={distance:.3f}  angle_diff={math.degrees(angle_diff):.1f}°"
+            )
             twist = Twist()
             # Rotate first
             if abs(angle_diff) > self.angular_threshold:
