@@ -33,50 +33,45 @@ class PathTracker:
             rospy.logerr(f"No valid targets loaded from {csv_path}")
             rospy.signal_shutdown("No targets")
 
-# 7.6
-        raw_targets = self.targets    # 読み込んだままのリスト
-        filtered = []
-        self.min_dist      = rospy.get_param('~min_dist',      0.1)
-        self.min_angle_deg = rospy.get_param('~min_angle_deg', 20.0)
-
-        # ローカル変数としても定義しておく
-        min_dist      = self.min_dist
-        min_angle_deg = self.min_angle_deg
-        min_angle     = math.radians(min_angle_deg)
-        #min_dist      = 0.1                   # 0.1 m 以内ならスキップ
-        #min_angle_deg = 20.0                  # 20度 以下ならスキップ
-        #min_angle     = math.radians(min_angle_deg)
-        last_dir      = None                  # 前回の進行方向 (rad)
-
+        # --- ダウンサンプリング開始 ---
+        raw_targets = self.targets    # CSVから読み込んだままの全点リスト
+        filtered    = []              # フィルタ後の点をためるリスト
+        last_dir    = None            # 前回採用した点への進行方向（ラジアン）
+        
         for tx, ty in raw_targets:
             if not filtered:
+                # 最初の点は必ず残す
                 filtered.append((tx, ty))
                 last_dir = None
             else:
+                # 直前に残した点を取得
                 px, py = filtered[-1]
+                # 今回の点までのベクトル差分
                 dx, dy = tx - px, ty - py
-
-                # 距離と角度、両方で「本当に細かい動き」だけスキップ
+                # 距離と方位を計算
                 dist  = math.hypot(dx, dy)
                 theta = math.atan2(dy, dx)
+                # 前回方向との差を [-π, π] に正規化
                 if last_dir is not None:
                     diff = (theta - last_dir + math.pi) % (2*math.pi) - math.pi
                 else:
                     diff = 0.0
-
-                # 両方の基準を超えない（小距離かつ小角度）場合のみスキップ
-                if dist < min_dist and abs(diff) < min_angle:
+        
+                # 【スキップ条件】
+                # 距離も角度変化も小さい → “本当に細かい動き” とみなし、残さず飛ばす
+                if dist < self.min_dist and abs(diff) < self.min_angle:
                     continue
-                
-                # フィルタ通過
+        
+                # そうでなければ採用し、方向を更新
                 filtered.append((tx, ty))
                 last_dir = theta
-
-        rospy.loginfo(f"Downsampled: {len(raw_targets)} → {len(filtered)} points (dist<{min_dist}m and Δangle<{min_angle_deg}° をスキップ)")
+        
+        # フィルタ後のリストで置き換え
         self.targets = filtered
-#7.6
+        # --- ダウンサンプリング終了 ---
 
 
+        
         # State
         self.current_pose = None
         self.index = 0
@@ -113,10 +108,7 @@ class PathTracker:
             distance = math.hypot(err_x, err_y)
             target_angle = math.atan2(err_y, err_x)
             angle_diff = self.normalize_angle(target_angle - yaw)
-            rospy.logdebug(
-                f"[{self.index}/{len(self.targets)}] "
-                f"dist={distance:.3f}  angle_diff={math.degrees(angle_diff):.1f}°"
-            )
+
             twist = Twist()
             # Rotate first
             if abs(angle_diff) > self.angular_threshold:
