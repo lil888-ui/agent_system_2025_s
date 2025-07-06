@@ -33,6 +33,12 @@ class PathTracker:
             rospy.logerr(f"No valid targets loaded from {csv_path}")
             rospy.signal_shutdown("No targets")
 
+        # --- ダウンサンプリングの閾値を先に取得 ---
+        self.min_dist      = rospy.get_param('~min_dist',      0.1)
+        self.min_angle_deg = rospy.get_param('~min_angle_deg', 20.0)
+        self.min_angle     = math.radians(self.min_angle_deg)
+        # -------------------------------
+        
         # --- ダウンサンプリング開始 ---
         raw_targets = self.targets    # CSVから読み込んだままの全点リスト
         filtered    = []              # フィルタ後の点をためるリスト
