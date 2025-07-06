@@ -10,8 +10,8 @@ class CSVPathFollower:
             '/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv')
         self.linear_speed  = rospy.get_param('~linear_speed',  0.2)    # m/s
         self.angular_speed = rospy.get_param('~angular_speed', 0.5)    # rad/s
-        self.dist_tol      = rospy.get_param('~distance_tolerance', 0.01) # m
-        self.ang_tol       = rospy.get_param('~angle_tolerance',    0.01) # rad
+        self.dist_tol      = rospy.get_param('~distance_tolerance', 0.05) # m
+        self.ang_tol       = rospy.get_param('~angle_tolerance',    0.1) # rad
 
         # --- state ---
         self.cx = 0.0
@@ -46,7 +46,11 @@ class CSVPathFollower:
             twist.angular.z = self.angular_speed * (1.0 if err > 0 else -1.0)
             self.pub.publish(twist)
             rate.sleep()
-        self.pub.publish(Twist())  # stop
+        # send zero velocity for 20 cycles to ensure stop
+        rospy.loginfo("[DBG] publishing zero-twist for stop")
+        for _ in range(20):
+            self.pub.publish(Twist())
+            rate.sleep()
 
     def move_straight(self):
         """ drive straight until within dist_tol of (self.target_x, self.target_y) """
@@ -61,7 +65,10 @@ class CSVPathFollower:
             twist.linear.x = self.linear_speed
             self.pub.publish(twist)
             rate.sleep()
-        self.pub.publish(Twist())  # stop
+        # send zero velocity for 20 cycles to ensure stop
+        for _ in range(20):
+            self.pub.publish(Twist())
+            rate.sleep()
 
     def run(self):
         # wait for first pose
@@ -102,6 +109,9 @@ class CSVPathFollower:
                 continue
 
             # 1) rotate towards next point
+            rospy.loginfo(
+                f"[DEBUG] curr=({self.cx:.3f},{self.cy:.3f}), goal=({self.target_x:.3f},{self.target_y:.3f})"
+            )
             dx = self.target_x - self.cx
             dy = self.target_y - self.cy
             yaw_goal = math.atan2(dy, dx)
