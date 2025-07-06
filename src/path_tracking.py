@@ -33,6 +33,46 @@ class PathTracker:
             rospy.logerr(f"No valid targets loaded from {csv_path}")
             rospy.signal_shutdown("No targets")
 
+# 7.6
+        raw_targets = self.targets    # 読み込んだままのリスト
+        filtered = []
+        self.min_dist      = rospy.get_param('~min_dist',      0.1)
+        self.min_angle_deg = rospy.get_param('~min_angle_deg', 20.0)
+        min_angle = math.radians(self.min_angle_deg)
+
+        #min_dist      = 0.1                   # 0.1 m 以内ならスキップ
+        #min_angle_deg = 20.0                  # 20度 以下ならスキップ
+        #min_angle     = math.radians(min_angle_deg)
+        last_dir      = None                  # 前回の進行方向 (rad)
+
+        for tx, ty in raw_targets:
+            if not filtered:
+                filtered.append((tx, ty))
+                last_dir = None
+            else:
+                px, py = filtered[-1]
+                dx, dy = tx - px, ty - py
+                dist = math.hypot(dx, dy)
+                if dist < min_dist:
+                    # 距離が近すぎ → スキップ
+                    continue
+                # 今回のセグメント方向
+                theta = math.atan2(dy, dx)
+                if last_dir is not None:
+                    # 角度差を [-π, π] に正規化
+                    diff = (theta - last_dir + math.pi) % (2*math.pi) - math.pi
+                    if abs(diff) < min_angle:
+                        # 角度変化が小さい → スキップ
+                        continue
+                # フィルタ通過
+                filtered.append((tx, ty))
+                last_dir = theta
+
+        rospy.loginfo(f\"Downsampled: {len(raw_targets)} → {len(filtered)} points (dist<{min_dist}m or Δangle<{min_angle_deg}° をスキップ)\")
+        self.targets = filtered
+#7.6
+
+
         # State
         self.current_pose = None
         self.index = 0
