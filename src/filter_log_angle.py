@@ -26,7 +26,7 @@ def compute_angle(p_prev, p_center, p_next):
     return math.acos(cosang)
 
 def main():
-    infile  = 'log_anntei.csv'
+    infile  = 'log_after_filter_distance.csv'
     outfile = 'log.csv'
 
     try:
