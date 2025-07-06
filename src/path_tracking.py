@@ -9,106 +9,107 @@ from tf.transformations import euler_from_quaternion
 class PathTracker:
     def __init__(self):
         # Parameters
-        csv_path = rospy.get_param('~csv_path', "/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv")
+        self.csv_path = rospy.get_param('~csv_path', "/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv")
         self.distance_threshold = rospy.get_param('~distance_threshold', 0.05)
         self.angular_threshold  = rospy.get_param('~angular_threshold', 0.1)
         self.linear_speed       = rospy.get_param('~linear_speed', 0.2)
         self.angular_speed      = rospy.get_param('~angular_speed', 0.5)
         rate_hz = rospy.get_param('~rate', 10)
 
-        # Load targets from CSV: columns [time, x, y, z]
-        self.targets = []
-        with open(csv_path, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) < 3:
-                    continue
-                try:
-                    x = float(row[1])
-                    y = float(row[2])
-                    self.targets.append((x, y))
-                except ValueError:
-                    continue
-        if not self.targets:
-            rospy.logerr(f"No valid targets loaded from {csv_path}")
-            rospy.signal_shutdown("No targets")
-
         # State
-        rospy.loginfo(f"all steps are {len(self.targets)}")
         self.current_pose = None
-        self.index = 0
 
         # ROS pubs/subs
         self.pose_sub = rospy.Subscriber('/robot_pose', PoseStamped, self.pose_callback)
         self.cmd_pub  = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
         self.rate = rospy.Rate(rate_hz)
-        rospy.loginfo(f"Loaded {len(self.targets)} targets. Starting path tracking...")
+        rospy.loginfo("PathTracker initialized, waiting for /robot_pose...")
 
     def pose_callback(self, msg):
+        # Log incoming pose
+        ori = msg.pose.orientation
+        rospy.loginfo(
+            f"[POSE CB] frame_id={msg.header.frame_id}, "
+            f"quat=[{ori.x:.3f}, {ori.y:.3f}, {ori.z:.3f}, {ori.w:.3f}]"
+        )
         self.current_pose = msg
 
     def run(self):
-        while not rospy.is_shutdown() and self.index < len(self.targets):
-            if self.current_pose is None:
-                self.rate.sleep()
-                continue
+        # Open CSV and iterate line by line
+        with open(self.csv_path, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                # parse one line
+                if len(row) < 3:
+                    rospy.logwarn(f"[CSV] skip short row: {row}")
+                    continue
+                try:
+                    tx = float(row[1])
+                    ty = float(row[2])
+                    rospy.loginfo(f"[CSV] row={row} → target=(x={tx:.3f}, y={ty:.3f})")
+                except ValueError:
+                    rospy.logwarn(f"[CSV] skip invalid row: {row}")
+                    continue
 
-            # Current position and yaw
-            px = self.current_pose.pose.position.x
-            py = self.current_pose.pose.position.y
-            ori = self.current_pose.pose.orientation
-            quaternion = [ori.x, ori.y, ori.z, ori.w]
-            (_, _, yaw) = euler_from_quaternion(quaternion)
+                # for this single target, loop until reached
+                while not rospy.is_shutdown():
+                    # wait for first pose
+                    if self.current_pose is None:
+                        rospy.loginfo("[DEBUG] waiting for first /robot_pose message…")
+                        self.rate.sleep()
+                        continue
 
-            # Target position
-            tx, ty = self.targets[self.index]
+                    # get current pose
+                    px = self.current_pose.pose.position.x
+                    py = self.current_pose.pose.position.y
+                    ori = self.current_pose.pose.orientation
+                    (_, _, yaw) = euler_from_quaternion([ori.x, ori.y, ori.z, ori.w])
 
-            # Compute error
-            err_x = tx - px
-            err_y = ty - py
-            distance = math.hypot(err_x, err_y)
-            target_angle = math.atan2(err_y, err_x)
-            angle_diff = self.normalize_angle(target_angle - yaw)
+                    # debug log
+                    rospy.loginfo(
+                        f"[DEBUG] robot=(x={px:.3f}, y={py:.3f}, yaw={yaw:.2f})  "
+                        f"target=(x={tx:.3f}, y={ty:.3f})"
+                    )
 
-            # --- スキップ条件を先にチェック ---
-            # 距離 < 0.1m かつ |角度差| < 0.3rad のときは無条件で次へ
-            #if distance < 0.1 and abs(angle_diff) < 0.3:
-            #    rospy.loginfo(f"Skipped target {self.index+1}/{len(self.targets)} "
-            #                  f"({tx:.3f}, {ty:.3f}) by shortcut")
-            #    self.index += 1
-                # ここで publish せずに次ループへ
-            #    continue
-            
-            twist = Twist()
-            # Rotate first
-            if abs(angle_diff) > self.angular_threshold:
-                twist.linear.x  = 0.0
-                twist.angular.z = self.angular_speed * (1 if angle_diff > 0 else -1)
-            else:
-                # Move forward
-                if distance > self.distance_threshold:
-                    twist.linear.x  = self.linear_speed
-                    twist.angular.z = 0.0
-                else:
-                    # Reached target
-                    rospy.loginfo(f"Reached target {self.index+1}/{len(self.targets)}: ({tx:.3f}, {ty:.3f})")
-                    self.index += 1
-                    twist.linear.x  = 0.0
-                    twist.angular.z = 0.0
+                    # compute error
+                    err_x = tx - px
+                    err_y = ty - py
+                    distance = math.hypot(err_x, err_y)
+                    target_angle = math.atan2(err_y, err_x)
+                    angle_diff = self.normalize_angle(target_angle - yaw)
 
-            self.cmd_pub.publish(twist)
-            self.rate.sleep()
+                    twist = Twist()
+                    # rotate phase
+                    if abs(angle_diff) > self.angular_threshold:
+                        twist.linear.x  = 0.0
+                        twist.angular.z = self.angular_speed * (1 if angle_diff > 0 else -1)
+                    else:
+                        # forward phase
+                        if distance > self.distance_threshold:
+                            twist.linear.x  = self.linear_speed
+                            twist.angular.z = 0.0
+                        else:
+                            # reached, break to next CSV line
+                            rospy.loginfo(f"Reached: ({tx:.3f}, {ty:.3f})")
+                            twist.linear.x  = 0.0
+                            twist.angular.z = 0.0
+                            self.cmd_pub.publish(twist)
+                            break
 
-        # Stop at end
-        rospy.loginfo("Path tracking complete. Stopping robot.")
+                    # publish and sleep
+                    self.cmd_pub.publish(twist)
+                    self.rate.sleep()
+
+        # done all lines
+        rospy.loginfo("All CSV targets processed. Stopping robot.")
         stop_twist = Twist()
         self.cmd_pub.publish(stop_twist)
         rospy.signal_shutdown("Done")
 
     @staticmethod
     def normalize_angle(angle):
-        # Wrap to [-pi, pi]
+        # wrap to [-pi, pi]
         while angle > math.pi:
             angle -= 2 * math.pi
         while angle < -math.pi:
