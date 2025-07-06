@@ -21,7 +21,7 @@ def angle(p1, p2, p3):
     return math.acos(cosv)
 
 def main():
-    in_path  = 'log_anntei.csv'
+    in_path  = 'log_after_filter_distance.csv'
     out_path = 'log.csv'
 
     try:
