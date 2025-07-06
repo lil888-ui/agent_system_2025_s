@@ -1,0 +1,293 @@
+format: ChoreonoidBody
+format_version: 2.0
+angle_unit: degree
+name: "SimpleTank"
+root_link: "CHASSIS"
+links:
+  -
+    name: "CHASSIS"
+    translation: [ 0, 0, 0.1 ]
+    joint_name: "CHASSIS"
+    joint_type: free
+    mass: 12
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.1, 0, 0,
+      0, 0.1, 0,
+      0, 0, 0.5 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material: &A0
+            diffuse: [ 0, 0.6, 0 ]
+            specular: [ 0.2, 0.8, 0.2 ]
+            specular_exponent: 77.2
+        geometry:
+          type: Box
+          size: [ 0.45, 0.2, 0.1 ]
+  -
+    name: "TURRET_Y"
+    parent: "CHASSIS"
+    translation: [ -0.04, 0, 0.1 ]
+    joint_name: "TURRET_Y"
+    joint_type: revolute
+    joint_axis: [ -0, -0, -1 ]
+    joint_id: 0
+    max_joint_velocity: 90
+    mass: 4
+    center_of_mass: [ 0, 0, 0.025 ]
+    inertia: [
+      0.1, 0, 0,
+      0, 0.1, 0,
+      0, 0, 0.1 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material: *A0
+        geometry:
+          type: Box
+          size: [ 0.2, 0.2, 0.1 ]
+  -
+    name: "TURRET_P"
+    parent: "TURRET_Y"
+    translation: [ 0, 0, 0.05 ]
+    joint_name: "TURRET_P"
+    joint_type: revolute
+    joint_axis: [ -0, -1, -0 ]
+    joint_id: 1
+    joint_range: [ -10, 45 ]
+    max_joint_velocity: 90
+    mass: 4
+    center_of_mass: [ 0.05, 0, 0 ]
+    inertia: [
+      0.2, -5.51091e-18, 0,
+      -5.51091e-18, 0.14, 0,
+      0, 0, 0.23 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material: *A0
+        geometry:
+          type: Cylinder
+          radius: 0.1
+          height: 0.1
+      -
+        type: Transform
+        rotation: [ 0, 0, 1, 90 ]
+        translation: [ 0.2, 0, 0 ]
+        elements:
+          -
+            type: Shape
+            appearance:
+              material: *A0
+            geometry:
+              type: Cylinder
+              radius: 0.02
+              height: 0.2
+      -
+        type: Transform
+        name: Light
+        translation: [ 0.08, 0, 0.1 ]
+        elements:
+          -
+            type: Transform
+            rotation: [ 0, 0, 1, 90 ]
+            translation: [ -0.02, 0, 0 ]
+            elements:
+              -
+                type: Shape
+                appearance:
+                  material:
+                    ambient: 0.3
+                    diffuse: [ 1, 1, 0.4 ]
+                    emissive: [ 0.8, 0.8, 0.3 ]
+                geometry:
+                  type: Cone
+                  radius: 0.025
+                  height: 0.04
+      -
+        type: Transform
+        name: Camera
+        rotation: [ 0.57735026919, -0.57735026919, -0.57735026919, 120 ]
+        translation: [ 0.1, 0, 0.05 ]
+        elements:
+          -
+            type: Transform
+            rotation: [ 1, 0, 0, 90 ]
+            elements:
+              -
+                type: Shape
+                appearance:
+                  material:
+                    diffuse: [ 0.2, 0.2, 0.8 ]
+                    specular: [ 0.6, 0.6, 1 ]
+                    specular_exponent: 77.2
+                geometry:
+                  type: Cylinder
+                  radius: 0.02
+                  height: 0.02
+      -
+        type: SpotLight
+        name: "Light"
+        translation: [ 0.08, 0, 0.1 ]
+        color: [ 1, 1, 1 ]
+        intensity: 1
+        attenuation: [ 1, 0, 0.01 ]
+        direction: [ 1, 0, 0 ]
+        beam_width: 36
+        cut_off_angle: 40
+        cut_off_exponent: 6
+      -
+        type: Camera
+        name: "Camera"
+        translation: [ 0.1, 0, 0.05 ]
+        rotation: [ 0.57735, -0.57735, -0.57735, 120 ]
+        frame_rate: 30
+        optical_frame: gl
+        format: COLOR
+        width: 640
+        height: 480
+        field_of_view: 62
+        near_clip_distance: 0.02
+        far_clip_distance: 200
+  -
+    name: "WHEEL_L_1"
+    parent: "CHASSIS"
+    translation: [ -0.15, 0.125, -0.03 ]
+    joint_name: "WHEEL_L_1"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
+  -
+    name: "WHEEL_L_2"
+    parent: "CHASSIS"
+    translation: [ 0, 0.125, -0.03 ]
+    joint_name: "WHEEL_L_2"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
+  -
+    name: "WHEEL_L_3"
+    parent: "CHASSIS"
+    translation: [ 0.15, 0.125, -0.03 ]
+    joint_name: "WHEEL_L_3"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
+  -
+    name: "WHEEL_R_1"
+    parent: "CHASSIS"
+    translation: [ -0.15, -0.125, -0.03 ]
+    joint_name: "WHEEL_R_1"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
+  -
+    name: "WHEEL_R_2"
+    parent: "CHASSIS"
+    translation: [ 0, -0.125, -0.03 ]
+    joint_name: "WHEEL_R_2"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
+  -
+    name: "WHEEL_R_3"
+    parent: "CHASSIS"
+    translation: [ 0.15, -0.125, -0.03 ]
+    joint_name: "WHEEL_R_3"
+    joint_type: revolute
+    joint_axis: [ 0, 1, 0 ]
+    mass: 1
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [
+      0.01, 0, 0,
+      0, 0.01, 0,
+      0, 0, 0.01 ]
+    elements:
+      -
+        type: Shape
+        appearance:
+          material:
+            diffuse: [ 0.2, 0.2, 0.2 ]
+        geometry:
+          type: Cylinder
+          radius: 0.05
+          height: 0.05
