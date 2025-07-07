@@ -19,6 +19,10 @@ a
 
     rosrun choreonoid_ros_tutorial track_path.py _csv_path:=/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv
 
+# 非常用（手動）
+
+    rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+
 
 
 a
