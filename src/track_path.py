@@ -46,9 +46,9 @@ class CSVPathFollower:
             twist.angular.z = self.angular_speed * (1.0 if err > 0 else -1.0)
             self.pub.publish(twist)
             rate.sleep()
-        # send zero velocity for 20 cycles to ensure stop
+        # send zero velocity for 2 cycles to ensure stop
         rospy.loginfo("[DBG] publishing zero-twist for stop")
-        for _ in range(20):
+        for _ in range(2):
             self.pub.publish(Twist())
             rate.sleep()
 
@@ -65,8 +65,8 @@ class CSVPathFollower:
             twist.linear.x = self.linear_speed
             self.pub.publish(twist)
             rate.sleep()
-        # send zero velocity for 20 cycles to ensure stop
-        for _ in range(20):
+        # send zero velocity for 2 cycles to ensure stop
+        for _ in range(2):
             self.pub.publish(Twist())
             rate.sleep()
 
