@@ -3,7 +3,7 @@
 
 import csv, math, sys
 
-THRESHOLD_RAD = math.radians(10.0)        # 10 度 → ラジアン
+THRESHOLD_RAD = math.radians(1.0)        # 10 度 → ラジアン
 
 def compute_angle(p_prev, p_center, p_next):
     """三つの 2D 点のなす角（p_prev→p_center と p_center→p_next）を返す"""
