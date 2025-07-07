@@ -1,13 +1,25 @@
-自動走行実行
+# いままでできていたのにできなくなったら
+
+    rosclean check
+
+a
+
+    rosclean purge -y
+
+# 実行方法
+タブその1
+
+    roscore
+
+タブその2
+
+     rosrun choreonoid_ros choreonoid
+
+タブその3
+
+    rosrun choreonoid_ros_tutorial track_path.py _csv_path:=/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv
 
 
-    rosrun choreonoid_ros_tutorial path_tracking.py \
-      _csv_path:=/home/naya728/ros/agent_system_ws/src/choreonoid_ros_tutorial/src/log.csv \
-      _distance_threshold:=0.05 \
-      _angular_threshold:=0.1 \
-      _linear_speed:=0.2 \
-      _angular_speed:=0.5 \
-      _rate:=10
 
 a
 
